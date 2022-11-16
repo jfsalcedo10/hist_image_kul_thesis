@@ -1,0 +1,26 @@
+Possible datasets:
+
+https://nucleisegmentationbenchmark.weebly.com/dataset.html - Sent by Wanqiu, used for
+nuceli segmentation of tissue. (it has annotations)
+
+https://camelyon17.grand-challenge.org/Data/ - Sent by Wanqiu as well, has images for
+lymph node sections with hematoxylin and eosin (with annotations)
+
+https://data.mendeley.com/datasets/d48b5zybck H&E stained as well as previous one, four
+classes and has 16.099 total histology images with data augmentation and 4.357 total
+without. Not sure if it has annotations as well.
+
+https://www.kaggle.com/datasets/paultimothymooney/breast-histopathology-images Dataset
+for IDC (Invasiv Ductal Carcionma - breast cancer). No annotations but is rather labeled
+for binary classification problems.
+
+
+https://paperswithcode.com/dataset/mhist MHIST dataset - binary classification as well,
+small and compact (can be run not using the whole vRAM of a RTX3090). As example use 
+cases, the authors use MHIST to study natural questions that arise in histopathology 
+image classification such as how dataset size, network depth, transfer learning, and 
+high-disagreement examples affect model performance.
+
+https://zenodo.org/record/5971764#.Y2_atcfMK3A Digital Pathology Dataset for Prostate
+Cancer - Used for two purposes (Gland Segmentation and Classification). Has annotations
+for some images.
