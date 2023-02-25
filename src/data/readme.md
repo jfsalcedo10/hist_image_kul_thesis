@@ -1,0 +1,1 @@
+This file contains info about the dataset itself. The images will be ignored when uploaded to the repo but should be the used folder for any script/notebook developed.
