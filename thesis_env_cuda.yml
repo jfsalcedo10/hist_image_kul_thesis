@@ -1,0 +1,11 @@
+name: thesis_env_cuda
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - torchaudio
+  - torchvision
+  - pytorch
+  - pytorch-cuda=11.7
+prefix: C:\Users\juans\anaconda3\envs\thesis_env_cuda

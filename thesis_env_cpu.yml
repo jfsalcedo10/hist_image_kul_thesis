@@ -1,0 +1,15 @@
+name: thesis_env_cpu
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - torchaudio
+  - pytorch
+  - cpuonly
+  - torchvision
+  - pandas
+  - numba
+  - jupyter
+  - seaborn
+prefix: C:\Users\juans\anaconda3\envs\thesis_env_cpu
