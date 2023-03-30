@@ -1,1 +1,2 @@
 src/data/*.tif
+src/utils/aws_config.env
