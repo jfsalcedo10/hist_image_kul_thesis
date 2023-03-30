@@ -1,2 +1,4 @@
 src/data/*.tif
 src/utils/aws_config.env
+src/data/**/*.tif
+src/data/**/*.xml

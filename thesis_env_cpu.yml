@@ -12,4 +12,6 @@ dependencies:
   - numba
   - jupyter
   - seaborn
+  - boto3
+  - python-dotenv
 prefix: C:\Users\juans\anaconda3\envs\thesis_env_cpu
