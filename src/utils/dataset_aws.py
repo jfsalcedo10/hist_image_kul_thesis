@@ -12,6 +12,7 @@ AWS_REGION = os.getenv('AWS_REGION')
 GOAL_BUCKET = 'camelyon-dataset'
 GOAL_DATASET = 'CAMELYON17/'
 GOAL_PATH  = 'src/data/'
+STARTING_DOWNLOAD_IDX = 0
 FILES_TO_DOWNLOAD = 10
 
 def list_folders(s3_client, bucket_name, prefix = 'CAMELYON17/', delimiter = '/', folders = False):
@@ -55,38 +56,48 @@ def download_file(s3_client,bucket_name, element_key, file_path, folder_path='')
         os.makedirs(file_path+folder_path)
     except OSError as e:
         if not os.path.isdir(file_path+ folder_path):
-            raise
+            raise e
 
     s3_client.download_file(bucket_name, element_key, final_path)
     print(f'''The file {element_key.split('/')[-1]} has been downloaded in {final_path} succesfully.''')
 
-# Fetching the desired dataset
-s3 = aws_session.client('s3')
-# folders_all = list_folders(s3,GOAL_BUCKET)
-# del folders_all[0]
-# print(folders_all)
-folders_list = list_folders(s3,GOAL_BUCKET, folders=True)
-annotations_list = list_folders(s3,GOAL_BUCKET, folders_list[0])
-# evaluation_list = list_folders(s3,GOAL_BUCKET, folders_list[1])
-images_list = list_folders(s3,GOAL_BUCKET,folders_list[2])
-masks_list = list_folders(s3, GOAL_BUCKET, folders_list[3])
-# print(evaluation_list)
-# print(images_list)
-# print(masks_lists)
+def download_list_file(list_files,s3_client,bucket_name, file_path, folder_path='', all_files=True):    
+    if all_files:
+        print(f'Downloading {len(list_files)} files: {list_files[:3]}...')
+        for file in list_files:
+            download_file(s3_client, bucket_name, file[0], file_path, folder_path)
+    else:
+        print(f'Downloading {FILES_TO_DOWNLOAD} files: {list_files[:3]}...')
+        for file in list_files[STARTING_DOWNLOAD_IDX: STARTING_DOWNLOAD_IDX +FILES_TO_DOWNLOAD-1]:
+            download_file(s3_client, bucket_name, file[0], file_path, folder_path)
 
-elements_list = list_folders(s3,GOAL_BUCKET, folders_list[1])
-print(elements_list)
-# Downloading utils files from dataset
-# for file in folders_all:
-#     download_file(s3, GOAL_BUCKET, file[0], GOAL_PATH)
-# Downloading images from dataset
-print(f'Starting to download {FILES_TO_DOWNLOAD} selected images, annotations and masks from S3...')
-for file in images_list[0:FILES_TO_DOWNLOAD-1]:
-    print(f'Accesing {file} from S3...')
-    download_file(s3, GOAL_BUCKET, file[0], GOAL_PATH, 'training/images/')
-# Downloading annotations from datasetll       0
-for file in annotations_list[0:FILES_TO_DOWNLOAD-1]:
-    download_file(s3, GOAL_BUCKET, file[0], GOAL_PATH, 'training/annotations/')
-# Downloading masks from dataset
-for file in masks_list[0:FILES_TO_DOWNLOAD-1]:
-    download_file(s3, GOAL_BUCKET, file[0], GOAL_PATH, 'training/images/')
+if __name__ == '__main__':
+    # Fetching the desired dataset
+    s3 = aws_session.client('s3')
+    folders_utils = list_folders(s3,GOAL_BUCKET)
+    del folders_utils[0]
+
+    # Getting all the folders in the bucket
+    folders_list = list_folders(s3,GOAL_BUCKET, folders=True)
+
+    # Mapping files of each folder
+    annotations_list = list_folders(s3,GOAL_BUCKET, folders_list[0])
+    evaluation_list = list_folders(s3,GOAL_BUCKET, folders_list[1])
+    images_list = list_folders(s3,GOAL_BUCKET,folders_list[2])
+    masks_list = list_folders(s3, GOAL_BUCKET, folders_list[3])
+
+    print(masks_list)
+    # Downloading utils files from dataset
+    # download_list_file(folders_utils, s3, GOAL_BUCKET, GOAL_PATH)
+
+    # Downloading annotations from dataset
+    download_list_file(annotations_list, s3, GOAL_BUCKET, GOAL_PATH, 'training/annotations/')
+
+    # # Downloading masks from dataset
+    # download_list_file(masks_list, s3, GOAL_BUCKET, GOAL_PATH, 'training/masks/')
+
+    # # Downloading evaulation scripts from bucket
+    # download_list_file(evaluation_list, s3, GOAL_BUCKET, GOAL_PATH, 'training/evaluation/')
+
+    # # Downloading images from dataset
+    # download_list_file(images_list, s3, GOAL_BUCKET, GOAL_PATH, 'training/images/', all_files= False)
