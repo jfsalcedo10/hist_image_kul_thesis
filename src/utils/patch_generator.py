@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from PIL import Image
 from PIL import TiffImagePlugin
 import numpy as np
@@ -11,13 +11,13 @@ import random
 # Getting the openslide tools for windows
 # OPENSLIDE_PATH = r'D:\kuleuven\thesis\openslide-win64\bin'
 OPENSLIDE_PATH = os.path.join(
-    'D:', os.sep, 'kuleuven', 'thesis', 'openslide-win64', 'bin')
+    'D:', os.sep, 'kuleuven', 'thesis', 'openslide-win64-20171122', 'bin')
 if hasattr(os, 'add_dll_directory'):
     # Python >= 3.8 on Windows
     with os.add_dll_directory(OPENSLIDE_PATH):
         import openslide  # type: ignore
         # print(f'OpenSlide version: {openslide.__version__}')
-        # print(f'OpenSlide library version: {openslide.__library_version__}')
+        print(f'OpenSlide library version: {openslide.__library_version__}')
 else:
     import openslide  # type: ignore
 
@@ -63,15 +63,25 @@ class PatchGenerator:
 
     def read_wsi(self, wsi_path):
         wsi_full_size = openslide.OpenSlide(wsi_path)
-        mag_options = wsi_full_size.level_downsamples
-        print(mag_options)
-        # For CAMELYON17 the downsampling has a floating point difference
-        closest_value = min(
-            mag_options, key=lambda v: abs(v - self.mag_factor))
-        print(closest_value)
-        mag_level = mag_options.index(closest_value)
-        wsi_scaled = np.array(wsi_full_size.read_region((0, 0), mag_level,
-                                                        wsi_full_size.level_dimensions[mag_level]))
+
+        mag_level = wsi_full_size.get_best_level_for_downsample(
+            self.mag_factor)
+        print(mag_level)
+        # Rescaling image
+        region = (0, 0)
+        size = wsi_full_size.level_dimensions[mag_level]
+        try:
+            wsi_scaled = np.array(
+                wsi_full_size.read_region(region, mag_level, size))
+        except openslide.OpenSlideError as e:
+            print(f'Openslide extraction failed. Trying with ASAP...')
+            reader = mir.MultiResolutionImageReader()
+            slide = reader.open(wsi_path)
+            wsi_scaled = np.array(slide.getUCharPatch(
+                startX=region[0], startY=region[1], width=size[0], height=size[1], level=mag_level))
+            wsi_full_size = slide
+        print(wsi_scaled.shape)
+
         return wsi_full_size, wsi_scaled
 
     def get_tissue_contours(self, wsi_scaled):
@@ -199,7 +209,7 @@ class PatchGenerator:
 
         return 0
 
-    def get_patches(self, wsi_full_size: openslide.OpenSlide, is_tumor, img_idx, tissue_contours, mask_full_size: Optional[openslide.OpenSlide] =None):
+    def get_patches(self, wsi_full_size: Union[openslide.OpenSlide, mir.MultiResolutionImage], is_tumor, img_idx, tissue_contours, mask_full_size: Optional[Union[openslide.OpenSlide, mir.MultiResolutionImage]] = None):
         patch_idx = 0
 
         for bbox in self.get_bbox(tissue_contours):
@@ -220,6 +230,7 @@ class PatchGenerator:
                 patch_path = ''
 
                 if bool(is_tumor):
+                    assert mask_full_size is not None
                     mask_patch = mask_full_size.read_region(
                         (real_x, real_y), 0, (self.patch_size, self.patch_size))
                     mask_patch_np = np.array(mask_patch)[:, :, 0]
@@ -263,3 +274,49 @@ class PatchGenerator:
                 cvt_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         return contours
+
+    def get_image_region(self, slide: Union[openslide.OpenSlide, mir.MultiResolutionImage], location, level, size) :
+
+        if type(slide) == openslide.OpenSlide:
+            assert type(slide) is openslide.OpenSlide
+            slide_patch = np.array(slide.read_region(location, level, size))
+            slide.close()
+        else:
+            assert type(slide) is mir.MultiResolutionImage
+            print(f'Openslide extraction failed. Trying with ASAP...')
+            slide_patch = slide.getUCharPatch(  # type: ignore
+                startX=location[0], startY=location[1], width=size[0], height=size[1], level=level)
+
+        return slide_patch
+
+    def get_mask_from_annotation(self, wsi_image, is_camelyon17: bool = False):
+        # Check if there is an annotation file
+        print(f'Is Camelyon17? {is_camelyon17}')
+        annotation_file = wsi_image.split('.', 1)[0] + '.xml'
+        annotation_path = os.path.join(self.annotation_path, annotation_file)
+        if not (os.path.exists(annotation_path)):
+            print(f'No annotation file found for {wsi_image}.')
+            return
+
+        reader = mir.MultiResolutionImageReader()
+        annotation_list = mir.AnnotationList()
+        xml_repository = mir.XmlRepository(annotation_list)
+
+        # adjust labels based on dataset (CAMELYON 16 or 17)
+        annotation_mask = mir.AnnotationToMask()
+        label_map = {'metastases': 1, 'normal': 2} if is_camelyon17 else {
+            '_0': 1, '_1': 1, '_2': 0}
+        conversion_order = ['metastases',
+                            'normal'] if is_camelyon17 else ['_0', '_1', '_2']
+
+        # Loading WSI associated to annotation
+        slide = reader.open(os.path.join(self.image_path, wsi_image))
+        xml_repository.setSource(annotation_path)
+        xml_repository.load()
+
+        # Save mask file generated from annotations
+        mask_path = os.path.join(self.mask_path, wsi_image)
+        annotation_mask.convert(annotation_list, mask_path, slide.getDimensions(
+        ), slide.getSpacing(), label_map, conversion_order)
+
+        print(f'Mask for {annotation_file} created successfully.')
