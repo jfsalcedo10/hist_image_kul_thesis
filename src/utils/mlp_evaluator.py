@@ -2,6 +2,7 @@ from utils.mlp_classifier import MLP
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 class MLPEvaluator():
     def __init__(self, device, batch_size, num_epochs, size_z, learning_rate, betas, num_gpu = 0):
@@ -44,9 +45,10 @@ class MLPEvaluator():
         criterion = nn.BCELoss()
         mlp_optimizer = optim.Adam(mlp.parameters(), lr = self.learning_rate, betas= self.betas)
         mlp_losses = []
-
+        
         for epoch in range(self.num_epochs):
-            for inputs, labels in mlp_loader:
+            loop = tqdm(mlp_loader)
+            for inputs, labels in loop:
                 mlp_optimizer.zero_grad()
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
@@ -57,7 +59,8 @@ class MLPEvaluator():
 
                 mlp_optimizer.step()
 
-                print(f"Epoch [{epoch+1}/{self.num_epochs}], Loss: {mlp_loss.item():.4f}")
+                loop.set_description(f"Epoch [{epoch+1}/{self.num_epochs}]")
+                loop.set_postfix(Loss = mlp_loss.item())
                 mlp_losses.append(mlp_loss.item())
 
         return mlp, mlp_losses
